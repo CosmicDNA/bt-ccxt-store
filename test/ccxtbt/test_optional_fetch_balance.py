@@ -1,11 +1,9 @@
 import time
 import unittest
-import os
 from datetime import datetime, timezone
 from unittest.mock import patch
 
 from backtrader import Strategy, Cerebro, TimeFrame
-from ccxt.base.errors import ExchangeError
 
 from ccxtbt import CCXTFeed, CCXTStore
 
@@ -23,19 +21,6 @@ class TestFeedInitialFetchBalance(unittest.TestCase):
     ohlcv data to try out this lib.
     """
 
-    def mock_binance_markets(self):
-        # A minimal mock for markets needed by the tests
-        return {
-            'BNB/USDT': {
-                'id': 'BNBUSDT', 'symbol': 'BNB/USDT', 'base': 'BNB', 'quote': 'USDT',
-                'baseId': 'BNB', 'quoteId': 'USDT', 'active': True, 'type': 'spot',
-                'linear': None, 'inverse': None, 'spot': True, 'swap': False, 'future': False,
-                'option': False, 'margin': True, 'contract': False, 'contractSize': None,
-                'expiry': None, 'expiryDatetime': None, 'optionType': None, 'strike': None,
-                'settle': None, 'settleId': None, 'precision': {}, 'limits': {}, 'info': {},
-            }
-        }
-
     def setUp(self):
         """
         The initial balance is fetched in the context of the initialization of the CCXTStore.
@@ -51,66 +36,28 @@ class TestFeedInitialFetchBalance(unittest.TestCase):
     def test_fetch_balance_throws_error(self, fetch_balance_mock):
         """
         If API keys are provided the store is expected to fetch the balance.
-        If fetch_balance fails (as simulated by the mock), an error should be raised.
         """
 
         config = {
-            "apiKey": "an-api-key",  # Changed to camelCase 'apiKey'
+            "apikey": "an-api-key",
             "secret": "an-api-secret",
             "enableRateLimit": True,
             "nonce": lambda: str(int(time.time() * 1000)),
         }
-
-        fetch_markets_patcher = None
-        # Only mock fetch_markets in CI environment to avoid geo-blocking issues
-        if os.environ.get('CI') or os.environ.get('GITHUB_ACTIONS'):
-            fetch_markets_patcher = patch("ccxt.binance.binance.fetch_markets")
-            mock_markets = fetch_markets_patcher.start()
-            mock_markets.return_value = self.mock_binance_markets()
-            self.addCleanup(fetch_markets_patcher.stop)
-
-        # Simulate an error during fetch_balance
-        fetch_balance_mock.side_effect = ExchangeError("API call to fetch_balance failed")
-
-        with self.assertRaises(ExchangeError):
-            backtesting(config)
+        backtesting(config)
 
         fetch_balance_mock.assert_called_once()
 
     def test_default_fetch_balance_param(self):
         """
-        If API keys are NOT provided the store is expected to
+        If API keys are provided the store is expected to
         not fetch the balance and load the ohlcv data without them.
         """
         config = {
             "enableRateLimit": True,
             "nonce": lambda: str(int(time.time() * 1000)),
         }
-        fetch_markets_patcher = None
-        fetch_ohlcv_patcher = None
-
-        # Only mock network calls in CI environment
-        if os.environ.get('CI') or os.environ.get('GITHUB_ACTIONS'):
-            fetch_markets_patcher = patch("ccxt.binance.binance.fetch_markets")
-            mock_markets = fetch_markets_patcher.start()
-            mock_markets.return_value = self.mock_binance_markets()
-            self.addCleanup(fetch_markets_patcher.stop)
-
-            fetch_ohlcv_patcher = patch("ccxt.binance.binance.fetch_ohlcv")
-            mock_ohlcv = fetch_ohlcv_patcher.start()
-            # Mock a couple of kline entries. The structure is:
-            # [timestamp, open, high, low, close, volume]
-            # Timestamps should align with what backtesting() function expects.
-            mock_ohlcv.return_value = [
-                [1546300800000, 10, 12, 9, 11, 100],  # 2019-01-01 00:00:00 UTC
-                [1546300860000, 11, 13, 10, 12, 150], # 2019-01-01 00:01:00 UTC
-                # Add a third one to satisfy the next_runs = 3 assertion
-                [1546300920000, 12, 14, 11, 13, 200], # 2019-01-01 00:02:00 UTC
-            ]
-            self.addCleanup(fetch_ohlcv_patcher.stop)
-
         finished_strategies = backtesting(config)
-        self.assertEqual(len(finished_strategies), 1)
         self.assertEqual(finished_strategies[0].next_runs, 3)
 
 

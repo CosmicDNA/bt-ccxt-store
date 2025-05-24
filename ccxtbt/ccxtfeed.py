@@ -24,7 +24,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import time
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 
 import backtrader as bt
 from backtrader.feed import DataBase
@@ -112,7 +112,7 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
                     ret = self._load_ohlcv()
                     if self.p.debug:
                         print('----     LOAD    ----')
-                        print('{} Load OHLCV Returning: {}'.format(datetime.utcnow(), ret))
+                        print('{} Load OHLCV Returning: {}'.format(datetime.now(tz=timezone.utc), ret))
                     return ret
 
             elif self._state == self._ST_HISTORBACK:
@@ -135,7 +135,7 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
         granularity = self.store.get_granularity(self._timeframe, self._compression)
 
         if fromdate:
-            since = int((fromdate - datetime(1970, 1, 1)).total_seconds() * 1000)
+            since = int((fromdate - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds() * 1000)
         else:
             if self._last_ts > 0:
                 since = self._last_ts
@@ -149,17 +149,17 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
 
             if self.p.debug:
                 # TESTING
-                since_dt = datetime.utcfromtimestamp(since // 1000) if since is not None else 'NA'
+                since_dt = datetime.fromtimestamp(since // 1000, tz=timezone.utc) if since is not None else 'NA'
                 print('---- NEW REQUEST ----')
-                print('{} - Requesting: Since TS {} Since date {} granularity {}, limit {}, params'.format(
-                    datetime.utcnow(), since, since_dt, granularity, limit, self.p.fetch_ohlcv_params))
+                print('{} - Requesting: Since TS {} Since date {} granularity {}, limit {}, params {}'.format(
+                    datetime.now(tz=timezone.utc), since, since_dt, granularity, limit, self.p.fetch_ohlcv_params))
                 data = sorted(self.store.fetch_ohlcv(self.p.dataname, timeframe=granularity,
                                                      since=since, limit=limit, params=self.p.fetch_ohlcv_params))
                 try:
                     for i, ohlcv in enumerate(data):
                         tstamp, open_, high, low, close, volume = ohlcv
-                        print('{} - Data {}: {} - TS {} Time {}'.format(datetime.utcnow(), i,
-                                                                        datetime.utcfromtimestamp(tstamp // 1000),
+                        print('{} - Data {}: {} - TS {} Time {}'.format(datetime.now(tz=timezone.utc), i,
+                                                                        datetime.fromtimestamp(tstamp // 1000, tz=timezone.utc),
                                                                         tstamp, (time.time() * 1000)))
                         # ------------------------------------------------------------------
                 except IndexError:
@@ -237,7 +237,7 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
 
         tstamp, open_, high, low, close, volume = ohlcv
 
-        dtime = datetime.utcfromtimestamp(tstamp // 1000)
+        dtime = datetime.fromtimestamp(tstamp // 1000, tz=timezone.utc)
 
         self.lines.datetime[0] = bt.date2num(dtime)
         self.lines.open[0] = open_

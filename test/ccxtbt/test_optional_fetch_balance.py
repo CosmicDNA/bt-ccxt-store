@@ -1,6 +1,6 @@
 import time
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 from backtrader import Strategy, Cerebro, TimeFrame
@@ -61,7 +61,7 @@ class TestFeedInitialFetchBalance(unittest.TestCase):
         self.assertEqual(finished_strategies[0].next_runs, 3)
 
 
-class TestStrategy(Strategy):
+class _TestStrategy(Strategy):
 
     def __init__(self):
         self.next_runs = 0
@@ -75,13 +75,13 @@ class TestStrategy(Strategy):
 def backtesting(config):
     cerebro = Cerebro()
 
-    cerebro.addstrategy(TestStrategy)
+    cerebro.addstrategy(_TestStrategy)
 
     cerebro.adddata(CCXTFeed(exchange='binance',
                              dataname='BNB/USDT',
                              timeframe=TimeFrame.Minutes,
-                             fromdate=datetime(2019, 1, 1, 0, 0),
-                             todate=datetime(2019, 1, 1, 0, 2),
+                             fromdate=datetime(2019, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+                             todate=datetime(2019, 1, 1, 0, 2, tzinfo=timezone.utc),
                              compression=1,
                              ohlcv_limit=2,
                              currency='BNB',

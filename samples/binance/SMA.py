@@ -1,6 +1,6 @@
 from ccxtbt import CCXTStore
 import backtrader as bt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 
 class TestStrategy(bt.Strategy):
@@ -91,7 +91,7 @@ cerebro.setbroker(broker)
 
 # Get our data
 # Drop newest will prevent us from loading partial data from incomplete candles
-hist_start_date = datetime.utcnow() - timedelta(minutes=50)
+hist_start_date = datetime.now(tz=timezone.utc) - timedelta(minutes=50)
 data = store.getdata(dataname='BNB/USDT', name="BNBUSDT",
                      timeframe=bt.TimeFrame.Minutes, fromdate=hist_start_date,
                      compression=1, ohlcv_limit=50, drop_newest=True) #, historical=True)

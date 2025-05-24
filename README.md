@@ -26,7 +26,7 @@ Check out the example script to see how to setup and run on Kraken.
 - Modified getcash() and getvalue():
       Backtrader will call getcash and getvalue before and after next, slowing things down
       with rest calls. As such, these will just return the last values called from getbalance().
-      Because getbalance() will not be called by cerebro, you need to do this manually as and when  
+      Because getbalance() will not be called by cerebro, you need to do this manually as and when
       you want the information.
 
 - **Note:** The broker mapping should contain a new dict for order_types and mappings like below:
@@ -96,7 +96,7 @@ A store is initialized in a similar way to other backtrader stores. e.g
   broker = store.getbroker()
   cerebro.setbroker(broker)
 
-  hist_start_date = datetime.utcnow() - timedelta(minutes=fromMinutes)
+  hist_start_date = datetime.now(tz=timezone.utc) - timedelta(minutes=fromMinutes)
   data = store.getdata(dataname=symbol, name="LTF",
                            timeframe=get_timeframe(timeframe), fromdate=hist_start_date,
                            compression=1, ohlcv_limit=50, fetch_ohlcv_params = {'partial': False}) #, historical=True)

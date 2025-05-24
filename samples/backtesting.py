@@ -1,5 +1,5 @@
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import backtrader as bt
 
@@ -24,8 +24,8 @@ def main():
     cerebro.adddata(CCXTFeed(exchange='binance',
                              dataname='BNB/USDT',
                              timeframe=bt.TimeFrame.Minutes,
-                             fromdate=datetime(2019, 1, 1, 0, 0),
-                             todate=datetime(2019, 1, 1, 0, 2),
+                             fromdate=datetime(2019, 1, 1, 0, 0, tzinfo=timezone.utc),
+                             todate=datetime(2019, 1, 1, 0, 2, tzinfo=timezone.utc),
                              compression=1,
                              ohlcv_limit=2,
                              currency='BNB',

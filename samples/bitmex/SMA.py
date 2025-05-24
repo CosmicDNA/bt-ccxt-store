@@ -1,6 +1,6 @@
 from ccxtbt import CCXTStore
 import backtrader as bt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 
 class TestStrategy(bt.Strategy):
@@ -57,7 +57,7 @@ config = {'apiKey': params["bitmex"]["apikey"],
           }
 
 
-# IMPORTANT NOTE - To use the testnet on Bitmex you need to register and 
+# IMPORTANT NOTE - To use the testnet on Bitmex you need to register and
 # create an API key on http://testnet.bitmex.com
 store = CCXTStore(exchange='bitmex', currency='BTC', config=config, retries=5, debug=False, sandbox=True)
 
@@ -90,7 +90,7 @@ cerebro.setbroker(broker)
 
 # Get our data
 # Drop newest will prevent us from loading partial data from incomplete candles
-hist_start_date = datetime.utcnow() - timedelta(minutes=50)
+hist_start_date = datetime.now(tz=timezone.utc) - timedelta(minutes=50)
 data = store.getdata(dataname='ETH/USD', name="ETHUSD",
                      timeframe=bt.TimeFrame.Minutes, fromdate=hist_start_date,
                      compression=1, ohlcv_limit=50, drop_newest=True) #, historical=True)

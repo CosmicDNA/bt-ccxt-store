@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bt_ccxt_store"
+version = "1.0"
+description = "A fork of Ed Bartosh's CCXT Store Work with some additions"
+readme = "README.md" # Assuming you have a README.md file
+authors = [{ name = "Dave Vallance", email = "dave@backtest-rookies.com" }]
+license = { text = "MIT" }
+requires-python = ">=3.7"
+keywords = [
+  "backtrader",
+  "ccxt",
+  "trading",
+  "cryptocurrency",
+  "finance",
+  "algorithmic trading",
+  "bot",
+]
+dependencies = ["backtrader", "ccxt"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Office/Business :: Financial :: Investment",
+]
+
+[project.urls]
+Homepage = "https://github.com/Dave-Vallance/bt-ccxt-store"
+Repository = "https://github.com/Dave-Vallance/bt-ccxt-store"
+
+[tool.setuptools]
+packages = ["ccxtbt"]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.0",
+  # "pytest-cov", # Example: if you want coverage reports
+]
+dev = [
+  "bt-ccxt-store[test]", # Installs all dependencies from the 'test' group
+  "build>=0.10.0",       # For building the package
+  # "twine>=3.0.0",        # For uploading to PyPI
+  # "ruff>=0.1.0",         # Fast linter and formatter
+  # "pre-commit",        # Optional: for running checks before commits
+]

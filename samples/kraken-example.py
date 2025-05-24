@@ -1,6 +1,7 @@
 from ccxtbt import CCXTStore
 import backtrader as bt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from os import environ
 
 
 class TestStrategy(bt.Strategy):
@@ -43,8 +44,9 @@ class TestStrategy(bt.Strategy):
 
 
 
-apikey = 'INSERT YOUR API KEY'
-secret = 'INSERT YOUR SECRET'
+# Load API key and secret from environment variables
+apikey = environ.get('KRAKEN_API_KEY')
+secret = environ.get('KRAKEN_API_SECRET')
 
 cerebro = bt.Cerebro(quicknotify=True)
 
@@ -92,7 +94,7 @@ cerebro.setbroker(broker)
 
 # Get our data
 # Drop newest will prevent us from loading partial data from incomplete candles
-hist_start_date = datetime.utcnow() - timedelta(minutes=50)
+hist_start_date = datetime.now(tz=timezone.utc) - timedelta(minutes=50)
 data = store.getdata(dataname='LTC/USD', name="LTCUSD",
                          timeframe=bt.TimeFrame.Minutes, fromdate=hist_start_date,
                          compression=1, ohlcv_limit=50, drop_newest=True) #, historical=True)

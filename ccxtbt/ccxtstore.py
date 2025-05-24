@@ -22,6 +22,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import time
 from datetime import datetime
+import logging
 from functools import wraps
 
 import backtrader as bt
@@ -93,13 +94,13 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
         """Returns broker with *args, **kwargs from registered ``BrokerCls``"""
         return cls.BrokerCls(*args, **kwargs)
 
-    def __init__(self, exchange, currency, config, retries, debug=False, sandbox=False):
+    def __init__(self, exchange, currency, config, retries, sandbox=False):
         self.exchange = getattr(ccxt, exchange)(config)
         if sandbox:
             self.exchange.set_sandbox_mode(True)
         self.currency = currency
         self.retries = retries
-        self.debug = debug
+        self.logger = logging.getLogger(self.__class__.__name__)
         balance = self.exchange.fetch_balance() if "secret" in config else 0
         try:
             if balance == 0 or not balance["free"][currency]:
@@ -142,12 +143,9 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
         @wraps(method)
         def retry_method(self, *args, **kwargs):
             for i in range(self.retries):
-                if self.debug:
-                    print(
-                        "{} - {} - Attempt {}".format(
-                            datetime.now(), method.__name__, i
-                        )
-                    )
+                self.logger.debug(
+                    "%s - %s - Attempt %s", datetime.now(), method.__name__, i
+                )
                 time.sleep(self.exchange.rateLimit / 1000)
                 try:
                     return method(self, *args, **kwargs)
@@ -199,12 +197,14 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
 
     @retry
     def fetch_ohlcv(self, symbol, timeframe, since, limit, params={}):
-        if self.debug:
-            print(
-                "Fetching: {}, TF: {}, Since: {}, Limit: {}".format(
-                    symbol, timeframe, since, limit
-                )
-            )
+        self.logger.debug(
+            "Fetching: %s, TF: %s, Since: %s, Limit: %s, Params: %s",
+            symbol,
+            timeframe,
+            since,
+            limit,
+            params,
+        )
         return self.exchange.fetch_ohlcv(
             symbol, timeframe=timeframe, since=since, limit=limit, params=params
         )
@@ -215,7 +215,7 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
 
     @retry
     def fetch_open_orders(self, symbol=None):
-        if symbol == None:
+        if symbol is None:
             return self.exchange.fetchOpenOrders()
         else:
             return self.exchange.fetchOpenOrders(symbol)

@@ -2,11 +2,13 @@ from ccxtbt import CCXTStore
 import backtrader as bt
 from datetime import datetime, timedelta, timezone
 import json
+import logging
 
 
 class TestStrategy(bt.Strategy):
     def __init__(self):
         self.sma = bt.indicators.SMA(self.data, period=21)
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     def next(self):
         # Get cash and balance
@@ -24,7 +26,7 @@ class TestStrategy(bt.Strategy):
             cash = "NA"
 
         for data in self.datas:
-            print(
+            self.logger.info(
                 "{} - {} | Cash {} | O: {} H: {} L: {} C: {} V:{} SMA:{}".format(
                     data.datetime.datetime(),
                     data._name,
@@ -39,10 +41,7 @@ class TestStrategy(bt.Strategy):
             )
 
     def notify_data(self, data, status, *args, **kwargs):
-        dn = data._name
-        dt = datetime.now()
-        msg = "Data Status: {}".format(data._getstatusname(status))
-        print(dt, dn, msg)
+        self.logger.info(f"{data._name} Data Status: {data._getstatusname(status)}")
         if data._getstatusname(status) == "LIVE":
             self.live_data = True
         else:
@@ -69,9 +68,7 @@ config = {
 # IMPORTANT NOTE - Kraken (and some other exchanges) will not return any values
 # for get cash or value if You have never held any BNB coins in your account.
 # So switch BNB to a coin you have funded previously if you get errors
-store = CCXTStore(
-    exchange="binance", currency="BNB", config=config, retries=5, debug=False
-)
+store = CCXTStore(exchange="binance", currency="BNB", config=config, retries=5)
 
 
 # Get the broker and pass any kwargs if needed.

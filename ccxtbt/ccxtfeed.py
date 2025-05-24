@@ -23,6 +23,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import time
 from collections import deque
+import logging
 from datetime import datetime, timezone
 
 import backtrader as bt
@@ -82,6 +83,7 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
     def __init__(self, **kwargs):
         # self.store = CCXTStore(exchange, config, retries)
         self.store = self._store(**kwargs)
+        self.logger = logging.getLogger(self.__class__.__name__)
         self._data = deque()  # data queue for price data
         self._last_id = ""  # last processed trade id for ohlcv
         self._last_ts = 0  # last processed timestamp for ohlcv
@@ -111,14 +113,13 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
                 else:
                     self._fetch_ohlcv()
                     ret = self._load_ohlcv()
-                    if self.p.debug:
-                        print("----     LOAD    ----")
-                        print(
-                            "{} Load OHLCV Returning: {}".format(
-                                datetime.now(tz=timezone.utc), ret
-                            )
-                        )
-                    return ret
+                    self.logger.debug("----     LOAD    ----")
+                    self.logger.debug(
+                        "%s Load OHLCV Returning: %s",
+                        datetime.now(tz=timezone.utc),
+                        ret,
+                    )
+                    return ret  # noqa E701
 
             elif self._state == self._ST_HISTORBACK:
                 ret = self._load_ohlcv()
@@ -155,59 +156,44 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
         while True:
             dlen = len(self._data)
 
-            if self.p.debug:
-                # TESTING
-                since_dt = (
-                    datetime.fromtimestamp(since // 1000, tz=timezone.utc)
-                    if since is not None
-                    else "NA"
+            self.logger.debug("---- NEW REQUEST ----")
+            self.logger.debug(
+                "%s - Requesting: Since TS %s Since date %s granularity %s, limit %s, params %s",
+                datetime.now(tz=timezone.utc),
+                since,
+                datetime.fromtimestamp(since // 1000, tz=timezone.utc)
+                if since is not None
+                else "NA",
+                granularity,
+                limit,
+                self.p.fetch_ohlcv_params,
+            )
+            data = sorted(
+                self.store.fetch_ohlcv(
+                    self.p.dataname,
+                    timeframe=granularity,
+                    since=since,
+                    limit=limit,
+                    params=self.p.fetch_ohlcv_params,
                 )
-                print("---- NEW REQUEST ----")
-                print(
-                    "{} - Requesting: Since TS {} Since date {} granularity {}, limit {}, params {}".format(
-                        datetime.now(tz=timezone.utc),
-                        since,
-                        since_dt,
-                        granularity,
-                        limit,
-                        self.p.fetch_ohlcv_params,
-                    )
-                )
-                data = sorted(
-                    self.store.fetch_ohlcv(
-                        self.p.dataname,
-                        timeframe=granularity,
-                        since=since,
-                        limit=limit,
-                        params=self.p.fetch_ohlcv_params,
-                    )
-                )
+            )
+            if self.logger.isEnabledFor(logging.DEBUG):
                 try:
                     for i, ohlcv in enumerate(data):
-                        tstamp, open_, high, low, close, volume = ohlcv
-                        print(
-                            "{} - Data {}: {} - TS {} Time {}".format(
-                                datetime.now(tz=timezone.utc),
-                                i,
-                                datetime.fromtimestamp(tstamp // 1000, tz=timezone.utc),
-                                tstamp,
-                                (time.time() * 1000),
-                            )
+                        tstamp, _, _, _, _, _ = ohlcv  # open_, high, low, close, volume
+                        self.logger.debug(
+                            "%s - Data %s: %s - TS %s Time %s",
+                            datetime.now(tz=timezone.utc),
+                            i,
+                            datetime.fromtimestamp(tstamp // 1000, tz=timezone.utc),
+                            tstamp,
+                            (time.time() * 1000),
                         )
-                        # ------------------------------------------------------------------
                 except IndexError:
-                    print("Index Error: Data = {}".format(data))
-                print("---- REQUEST END ----")
-            else:
-                data = sorted(
-                    self.store.fetch_ohlcv(
-                        self.p.dataname,
-                        timeframe=granularity,
-                        since=since,
-                        limit=limit,
-                        params=self.p.fetch_ohlcv_params,
+                    self.logger.warning(
+                        "Index Error while logging fetched OHLCV data (debug): %s", data
                     )
-                )
+                self.logger.debug("---- REQUEST END ----")
 
             # Check to see if dropping the latest candle will help with
             # exchanges which return partial data
@@ -228,8 +214,7 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
                 #    continue
 
                 if tstamp > self._last_ts:
-                    if self.p.debug:
-                        print("Adding: {}".format(ohlcv))
+                    self.logger.debug("Adding: %s", ohlcv)
                     self._data.append(ohlcv)
                     self._last_ts = tstamp
 

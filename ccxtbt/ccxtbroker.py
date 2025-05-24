@@ -22,6 +22,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import collections
 import json
+import logging
 
 from backtrader import BrokerBase, OrderBase, Order
 from backtrader.position import Position
@@ -106,8 +107,9 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
         "canceled_order": {"key": "status", "value": "canceled"},
     }
 
-    def __init__(self, broker_mapping=None, debug=False, **kwargs):
+    def __init__(self, broker_mapping=None, **kwargs):
         super(CCXTBroker, self).__init__()
+        self.logger = logging.getLogger(self.__class__.__name__)
 
         if broker_mapping is not None:
             try:
@@ -125,7 +127,6 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
 
         self.positions = collections.defaultdict(Position)
 
-        self.debug = debug
         self.indent = 4  # For pretty printing dictionaries
 
         self.notifs = queue.Queue()  # holds orders which are notified
@@ -184,16 +185,14 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
         return pos
 
     def next(self):
-        if self.debug:
-            print("Broker next() called")
+        self.logger.debug("Broker next() called")
 
         for o_order in list(self.open_orders):
             oID = o_order.ccxt_order["id"]
 
             # Print debug before fetching so we know which order is giving an
             # issue if it crashes
-            if self.debug:
-                print("Fetching Order ID: {}".format(oID))
+            self.logger.debug("Fetching Order ID: %s", oID)
 
             # Get the order
             ccxt_order = self.store.fetch_order(oID, o_order.data.p.dataname)
@@ -219,8 +218,9 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
                         )
                         o_order.executed_fills.append(fill["id"])
 
-            if self.debug:
-                print(json.dumps(ccxt_order, indent=self.indent))
+            self.logger.debug(
+                "CCXT Order details: %s", json.dumps(ccxt_order, indent=self.indent)
+            )
 
             # Check if the order is closed
             if (
@@ -275,7 +275,17 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
                     price=price,
                     params=params,
                 )
-            except:
+            except Exception as e:
+                self.logger.error(
+                    "Error creating order: %s, %s, %s, %s, %s, %s, %s",
+                    data.p.dataname,
+                    order_type,
+                    side,
+                    amount,
+                    price,
+                    params,
+                    e,
+                )
                 # save some API calls after failure
                 self.use_order_params = False
                 return None
@@ -330,16 +340,16 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
     def cancel(self, order):
         oID = order.ccxt_order["id"]
 
-        if self.debug:
-            print("Broker cancel() called")
-            print("Fetching Order ID: {}".format(oID))
+        self.logger.debug("Broker cancel() called for Order ID: %s", oID)
 
         # check first if the order has already been filled otherwise an error
         # might be raised if we try to cancel an order that is not open.
         ccxt_order = self.store.fetch_order(oID, order.data.p.dataname)
 
-        if self.debug:
-            print(json.dumps(ccxt_order, indent=self.indent))
+        self.logger.debug(
+            "Order status before cancel attempt: %s",
+            json.dumps(ccxt_order, indent=self.indent),
+        )
 
         if (
             ccxt_order[self.mappings["closed_order"]["key"]]
@@ -349,14 +359,16 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
 
         ccxt_order = self.store.cancel_order(oID, order.data.p.dataname)
 
-        if self.debug:
-            print(json.dumps(ccxt_order, indent=self.indent))
-            print(
-                "Value Received: {}".format(
-                    ccxt_order[self.mappings["canceled_order"]["key"]]
-                )
-            )
-            print("Value Expected: {}".format(self.mappings["canceled_order"]["value"]))
+        self.logger.debug(
+            "Order status after cancel attempt: %s",
+            json.dumps(ccxt_order, indent=self.indent),
+        )
+        self.logger.debug(
+            "Value Received: %s", ccxt_order[self.mappings["canceled_order"]["key"]]
+        )
+        self.logger.debug(
+            "Value Expected: %s", self.mappings["canceled_order"]["value"]
+        )
 
         if (
             ccxt_order[self.mappings["canceled_order"]["key"]]

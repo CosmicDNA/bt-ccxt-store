@@ -17,4 +17,4 @@ repos:
         language: system # Assumes pytest is in the PATH of your activated venv
         types: [python]
         pass_filenames: false # pytest discovers files on its own
-        stages: [commit]
+        stages: [pre-commit]

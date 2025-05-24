@@ -77,9 +77,14 @@ config = {
     "nonce": lambda: str(int(time.time() * 1000)),
 }
 
-store = CCXTStore(
-    exchange="binance", currency="BNB", config=config, retries=5, debug=True
+# Set a general level (e.g., INFO) for other loggers
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+# Specifically set the CCXTFeed logger to DEBUG level
+logging.getLogger("CCXTStore").setLevel(logging.DEBUG)
+
+store = CCXTStore(exchange="binance", currency="BNB", config=config, retries=5)
 
 
 # Get the broker and pass any kwargs if needed.

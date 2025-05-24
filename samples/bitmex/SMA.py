@@ -3,10 +3,20 @@ import backtrader as bt
 from datetime import datetime, timedelta, timezone
 from os import environ
 
+import logging
+
+# Set a general level (e.g., INFO) for other loggers
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+# Specifically set the CCXTFeed logger to DEBUG level
+logging.getLogger("TestStrategy").setLevel(logging.DEBUG)
+
 
 class TestStrategy(bt.Strategy):
     def __init__(self):
         self.sma = bt.indicators.SMA(self.data, period=21)
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     def next(self):
         # Get cash and balance
@@ -24,7 +34,7 @@ class TestStrategy(bt.Strategy):
             cash = "NA"
 
         for data in self.datas:
-            print(
+            self.logger.info(
                 "{} - {} | Cash {} | O: {} H: {} L: {} C: {} V:{} SMA:{}".format(
                     data.datetime.datetime(),
                     data._name,
@@ -39,10 +49,7 @@ class TestStrategy(bt.Strategy):
             )
 
     def notify_data(self, data, status, *args, **kwargs):
-        dn = data._name
-        dt = datetime.now()
-        msg = "Data Status: {}".format(data._getstatusname(status))
-        print(dt, dn, msg)
+        self.logger.info(f"{data._name} Data Status: {data._getstatusname(status)}")
         if data._getstatusname(status) == "LIVE":
             self.live_data = True
         else:
@@ -70,7 +77,6 @@ store = CCXTStore(
     currency="BTC",
     config=config,
     retries=5,
-    debug=False,
     sandbox=True,
 )
 

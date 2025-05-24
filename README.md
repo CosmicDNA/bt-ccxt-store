@@ -31,7 +31,7 @@ Check out the example script to see how to setup and run on Kraken.
 
 - **Note:** The broker mapping should contain a new dict for order_types and mappings like below:
 
-```
+```Python
   broker_mapping = {
       'order_types': {
           bt.Order.Market: 'market',
@@ -55,7 +55,7 @@ Check out the example script to see how to setup and run on Kraken.
     An example for getting a list of postions and then closing them on Bitfinex
     is below:
 
-```
+```Python
       # NOTE - THIS CLOSES A LONG POSITION. TO CLOSE A SHORT, REMOVE THE '-' FROM
       # -self.position.size
       type = 'Post'
@@ -80,7 +80,7 @@ Redesigned the way that the store is intialized, data and brokers are requested.
 The store now uses metaparams and has methods for `getbroker()` and `getdata()`.
 A store is initialized in a similar way to other backtrader stores. e.g
 
-```
+```Python
 # Create a cerebro
   cerebro = bt.Cerebro()
 
@@ -91,7 +91,7 @@ A store is initialized in a similar way to other backtrader stores. e.g
                   }
 
   # Create data feeds
-  store = CCXTStore(exchange='bitmex', currency=currency, config=config, retries=5, debug=False)
+  store = CCXTStore(exchange='bitmex', currency=currency, config=config, retries=5)
 
   broker = store.getbroker()
   cerebro.setbroker(broker)

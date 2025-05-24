@@ -1,12 +1,22 @@
 import json
 import os
 import time
+import logging
 from datetime import datetime, timedelta, timezone
 
 import backtrader as bt
+
 from backtrader import Order
 
 from ccxtbt import CCXTStore
+
+
+# Set a general level (e.g., INFO) for other loggers
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+# Specifically set the CCXTFeed logger to DEBUG level
+logging.getLogger("TestStrategy").setLevel(logging.DEBUG)
 
 
 class TestStrategy(bt.Strategy):
@@ -14,6 +24,7 @@ class TestStrategy(bt.Strategy):
         self.bought = False
         # To keep track of pending orders and buy price/commission
         self.order = None
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     def next(self):
         if self.live_data and not self.bought:
@@ -26,7 +37,7 @@ class TestStrategy(bt.Strategy):
             self.bought = True
 
         for data in self.datas:
-            print(
+            self.logger.info(
                 "{} - {} | O: {} H: {} L: {} C: {} V:{}".format(
                     data.datetime.datetime(),
                     data._name,
@@ -39,12 +50,9 @@ class TestStrategy(bt.Strategy):
             )
 
     def notify_data(self, data, status, *args, **kwargs):
-        dn = data._name
-        dt = datetime.now()
-        msg = "Data Status: {}, Order Status: {}".format(
-            data._getstatusname(status), status
+        self.logger.info(
+            f"{data._name} Data Status: {data._getstatusname(status)}, Order Status: {status}"
         )
-        print(dt, dn, msg)
         if data._getstatusname(status) == "LIVE":
             self.live_data = True
         else:
@@ -72,9 +80,14 @@ config = {
     "nonce": lambda: str(int(time.time() * 1000)),
 }
 
-store = CCXTStore(
-    exchange="binance", currency="BNB", config=config, retries=5, debug=True
+# Set a general level (e.g., INFO) for other loggers
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+# Specifically set the CCXTFeed logger to DEBUG level
+logging.getLogger("CCXTStore").setLevel(logging.DEBUG)
+
+store = CCXTStore(exchange="binance", currency="BNB", config=config, retries=5)
 
 # Get the broker and pass any kwargs if needed.
 # ----------------------------------------------

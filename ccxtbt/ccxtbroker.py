@@ -135,6 +135,8 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
 
         self.startingcash = self.store._cash
         self.startingvalue = self.store._value
+        self.cash = self.store._cash
+        self.value = self.store._value
 
         self.use_order_params = True
 
@@ -387,8 +389,8 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
         endpoint_str = endpoint_str.replace("}", "")
 
         if prefix != "":
-            method_str = prefix.lower() + "_private_" + type.lower() + endpoint_str.lower()
+            method_str = prefix.lower() + "_private_" + type.lower() + "_" + endpoint_str.lower()
         else:
-            method_str = "private_" + type.lower() + endpoint_str.lower()
+            method_str = "private_" + type.lower() + "_" + endpoint_str.lower()
 
         return self.store.private_end_point(type=type, endpoint=method_str, params=params)

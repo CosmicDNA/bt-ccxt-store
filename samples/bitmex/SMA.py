@@ -1,7 +1,7 @@
 from ccxtbt import CCXTStore
 import backtrader as bt
 from datetime import datetime, timedelta, timezone
-import json
+from os import environ
 
 class TestStrategy(bt.Strategy):
 
@@ -41,9 +41,6 @@ class TestStrategy(bt.Strategy):
         else:
             self.live_data = False
 
-with open('./samples/params.json', 'r') as f:
-    params = json.load(f)
-
 cerebro = bt.Cerebro(quicknotify=True)
 
 
@@ -51,8 +48,8 @@ cerebro = bt.Cerebro(quicknotify=True)
 cerebro.addstrategy(TestStrategy)
 
 # Create our store
-config = {'apiKey': params["bitmex"]["apikey"],
-          'secret': params["bitmex"]["secret"],
+config = {'apiKey': environ.get('BITMEX_API_KEY'),
+          'secret': environ.get('BITMEX_API_SECRET'),
           'enableRateLimit': True,
           }
 
@@ -91,7 +88,7 @@ cerebro.setbroker(broker)
 # Get our data
 # Drop newest will prevent us from loading partial data from incomplete candles
 hist_start_date = datetime.now(tz=timezone.utc) - timedelta(minutes=50)
-data = store.getdata(dataname='ETH/USD', name="ETHUSD",
+data = store.getdata(dataname='ETHUSD', name="ETHUSD",
                      timeframe=bt.TimeFrame.Minutes, fromdate=hist_start_date,
                      compression=1, ohlcv_limit=50, drop_newest=True) #, historical=True)
 

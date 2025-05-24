@@ -86,12 +86,28 @@ class TestFeedInitialFetchBalance(unittest.TestCase):
             "enableRateLimit": True,
             "nonce": lambda: str(int(time.time() * 1000)),
         }
-        # Only mock fetch_markets in CI environment
+        fetch_markets_patcher = None
+        fetch_ohlcv_patcher = None
+
+        # Only mock network calls in CI environment
         if os.environ.get('CI') or os.environ.get('GITHUB_ACTIONS'):
             fetch_markets_patcher = patch("ccxt.binance.binance.fetch_markets")
             mock_markets = fetch_markets_patcher.start()
             mock_markets.return_value = self.mock_binance_markets()
             self.addCleanup(fetch_markets_patcher.stop)
+
+            fetch_ohlcv_patcher = patch("ccxt.binance.binance.fetch_ohlcv")
+            mock_ohlcv = fetch_ohlcv_patcher.start()
+            # Mock a couple of kline entries. The structure is:
+            # [timestamp, open, high, low, close, volume]
+            # Timestamps should align with what backtesting() function expects.
+            mock_ohlcv.return_value = [
+                [1546300800000, 10, 12, 9, 11, 100],  # 2019-01-01 00:00:00 UTC
+                [1546300860000, 11, 13, 10, 12, 150], # 2019-01-01 00:01:00 UTC
+                # Add a third one to satisfy the next_runs = 3 assertion
+                [1546300920000, 12, 14, 11, 13, 200], # 2019-01-01 00:02:00 UTC
+            ]
+            self.addCleanup(fetch_ohlcv_patcher.stop)
 
         finished_strategies = backtesting(config)
         self.assertEqual(len(finished_strategies), 1)

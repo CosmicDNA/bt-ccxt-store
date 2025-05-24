@@ -63,6 +63,132 @@ class TestFeedInitialFetchBalance(unittest.TestCase):
         self.assertEqual(finished_strategies[0].next_runs, 3)
 
 
+class TestCCXTStore(unittest.TestCase):
+    def setUp(self):
+        CCXTStore._singleton = None
+        self.exchange_name = "binance"  # Using a common exchange for mocking
+        self.currency = "BTC"
+        self.retries = 1
+        self.base_config = {"enableRateLimit": True, "nonce": lambda: str(int(time.time() * 1000))}
+
+    @patch("ccxt.binance")
+    def test_store_init_sandbox_mode(self, MockExchangeCls):
+        mock_exchange_instance = MockExchangeCls.return_value
+        mock_exchange_instance.fetch_balance.return_value = 0  # Avoid issues if secret was in config
+
+        store = CCXTStore(
+            exchange=self.exchange_name,
+            currency=self.currency,
+            config=self.base_config,
+            retries=self.retries,
+            sandbox=True,
+        )
+        mock_exchange_instance.set_sandbox_mode.assert_called_once_with(True)
+        self.assertIsNotNone(store)
+
+    @patch("ccxt.binance")
+    def test_store_init_no_api_keys_no_balance_fetch(self, MockExchangeCls):
+        mock_exchange_instance = MockExchangeCls.return_value
+        config = {}  # No API keys
+        store = CCXTStore(exchange=self.exchange_name, currency=self.currency, config=config, retries=self.retries)
+        mock_exchange_instance.fetch_balance.assert_not_called()
+        self.assertEqual(store._cash, 0)
+        self.assertEqual(store._value, 0)
+
+    @patch("ccxt.binance")
+    def test_store_init_with_api_keys_fetches_balance_success(self, MockExchangeCls):
+        mock_exchange_instance = MockExchangeCls.return_value
+        mock_exchange_instance.fetch_balance.return_value = {
+            "free": {self.currency: 10.0},
+            "total": {self.currency: 12.0},
+        }
+        config_with_keys = {**self.base_config, "secret": "asecret"}
+        store = CCXTStore(
+            exchange=self.exchange_name, currency=self.currency, config=config_with_keys, retries=self.retries
+        )
+        mock_exchange_instance.fetch_balance.assert_called_once()
+        self.assertEqual(store._cash, 10.0)
+        self.assertEqual(store._value, 12.0)
+
+    @patch("ccxt.binance")
+    def test_store_init_with_api_keys_balance_is_zero_object(self, MockExchangeCls):
+        mock_exchange_instance = MockExchangeCls.return_value
+        mock_exchange_instance.fetch_balance.return_value = (
+            0  # As per code: `balance = ... if "secret" in config else 0`
+        )
+        config_with_keys = {**self.base_config, "secret": "asecret"}
+        store = CCXTStore(
+            exchange=self.exchange_name, currency=self.currency, config=config_with_keys, retries=self.retries
+        )
+        mock_exchange_instance.fetch_balance.assert_called_once()
+        self.assertEqual(store._cash, 0)
+        self.assertEqual(store._value, 0)
+
+    @patch("ccxt.binance")
+    def test_store_init_with_api_keys_currency_not_in_balance(self, MockExchangeCls):
+        mock_exchange_instance = MockExchangeCls.return_value
+        mock_exchange_instance.fetch_balance.return_value = {"free": {"ETH": 5.0}, "total": {"ETH": 6.0}}
+        config_with_keys = {**self.base_config, "secret": "asecret"}
+        store = CCXTStore(
+            exchange=self.exchange_name, currency=self.currency, config=config_with_keys, retries=self.retries
+        )
+        mock_exchange_instance.fetch_balance.assert_called_once()
+        self.assertEqual(store._cash, 0)  # Expect 0 due to KeyError for self.currency
+        self.assertEqual(store._value, 0)
+
+    @patch("ccxt.binance")
+    def test_store_get_granularity_valid(self, MockExchangeCls):
+        mock_exchange_instance = MockExchangeCls.return_value
+        mock_exchange_instance.has = {"fetchOHLCV": True}
+        mock_exchange_instance.timeframes = {"1m": "1m"}
+        store = CCXTStore(exchange=self.exchange_name, currency=self.currency, config={}, retries=self.retries)
+        granularity = store.get_granularity(TimeFrame.Minutes, 1)
+        self.assertEqual(granularity, "1m")
+
+    @patch("ccxt.binance")
+    def test_store_get_granularity_fetchohlcv_not_supported(self, MockExchangeCls):
+        mock_exchange_instance = MockExchangeCls.return_value
+        mock_exchange_instance.has = {"fetchOHLCV": False}
+        mock_exchange_instance.name = self.exchange_name  # For error message
+        store = CCXTStore(exchange=self.exchange_name, currency=self.currency, config={}, retries=self.retries)
+        with self.assertRaisesRegex(
+            NotImplementedError, f"'{self.exchange_name}' exchange doesn't support fetching OHLCV data"
+        ):
+            store.get_granularity(TimeFrame.Minutes, 1)
+
+    @patch("ccxt.binance")
+    def test_store_get_granularity_unsupported_backtrader_timeframe(self, MockExchangeCls):
+        mock_exchange_instance = MockExchangeCls.return_value
+        mock_exchange_instance.has = {"fetchOHLCV": True}
+        store = CCXTStore(exchange=self.exchange_name, currency=self.currency, config={}, retries=self.retries)
+        with self.assertRaisesRegex(
+            ValueError,
+            "backtrader CCXT module doesn't support fetching OHLCV data for time frame Second, compression 1",
+        ):
+            store.get_granularity(TimeFrame.Seconds, 1)  # Assuming TimeFrame.Seconds is not in _GRANULARITIES
+
+    @patch("ccxt.binance")
+    def test_store_get_granularity_unsupported_exchange_timeframe(self, MockExchangeCls):
+        mock_exchange_instance = MockExchangeCls.return_value
+        mock_exchange_instance.has = {"fetchOHLCV": True}
+        mock_exchange_instance.timeframes = {"5m": "5m"}  # "1m" is not supported by exchange
+        mock_exchange_instance.name = self.exchange_name  # For error message
+        store = CCXTStore(exchange=self.exchange_name, currency=self.currency, config={}, retries=self.retries)
+        with self.assertRaisesRegex(
+            ValueError, f"'{self.exchange_name}' exchange doesn't support fetching OHLCV data for 1m time frame"
+        ):
+            store.get_granularity(TimeFrame.Minutes, 1)
+
+    @patch("ccxt.binance")
+    def test_store_get_granularity_exchange_timeframes_is_none(self, MockExchangeCls):
+        mock_exchange_instance = MockExchangeCls.return_value
+        mock_exchange_instance.has = {"fetchOHLCV": True}
+        mock_exchange_instance.timeframes = None  # Exchange supports all _GRANULARITIES implicitly
+        store = CCXTStore(exchange=self.exchange_name, currency=self.currency, config={}, retries=self.retries)
+        granularity = store.get_granularity(TimeFrame.Minutes, 1)
+        self.assertEqual(granularity, "1m")
+
+
 class TestGetHistoricalDataFrame(unittest.TestCase):
     def setUp(self):
         CCXTStore._singleton = None
@@ -292,6 +418,121 @@ class TestGetHistoricalDataFrame(unittest.TestCase):
         if len(df) == 2:  # Check only if expected number of rows are present
             self.assertAlmostEqual(df.iloc[0]["close"], fetched_data[0][4])
             self.assertAlmostEqual(df.iloc[1]["close"], fetched_data[2][4])
+
+
+class TestCCXTFeed(unittest.TestCase):
+    def setUp(self):
+        # It's crucial to reset the singleton for CCXTStore to ensure
+        # that CCXTFeed initializes a new (or freshly mocked) store instance.
+        CCXTStore._singleton = None
+
+        self.exchange_name = "binance"
+        self.dataname = "BTC/USDT"
+        self.currency = "BTC"  # Currency for the store config within feed
+        self.config = {}  # Minimal config for store
+
+        self.common_feed_params = {
+            "exchange": self.exchange_name,
+            "dataname": self.dataname,
+            "currency": self.currency,
+            "config": self.config,
+            "retries": 1,
+            "timeframe": TimeFrame.Minutes,  # Default, can be overridden
+            "compression": 1,  # Default, can be overridden
+            "ohlcv_limit": 20,
+            "drop_newest": False,
+            "debug": False,
+            "historical": False,
+        }
+
+        # Patch CCXTStore specifically where CCXTFeed imports it
+        # Patch CCXTFeed._store directly as it's assigned at class definition time.
+        self.patcher_store_class = patch.object(CCXTFeed, "_store")
+        self.MockCCXTStore_class = self.patcher_store_class.start()
+
+        # self.mock_store_instance is what an instance of CCXTStore() should be (the result of the call)
+        self.mock_store_instance = MagicMock()
+        self.MockCCXTStore_class.return_value = self.mock_store_instance
+
+        # Mock methods on the store instance that CCXTFeed will call
+        self.mock_store_instance.get_granularity.return_value = "1m"  # Common case
+
+    def tearDown(self):
+        self.patcher_store_class.stop()
+        CCXTStore._singleton = None  # Ensure clean state for other test classes
+
+    def test_feed_init_passes_kwargs_to_store(self):
+        custom_kwargs = {"exchange": "kraken", "currency": "ETH", "config": {"timeout": 30000}, "retries": 3}
+        feed_kwargs = {**self.common_feed_params, **custom_kwargs}
+        # We don't need to use the feed instance itself, just check the store call
+        # CCXTFeed.__init__ will filter feed_kwargs and pass only store-relevant ones (custom_kwargs)
+        # to self._store() (which is self.MockCCXTStore_class)
+        CCXTFeed(**feed_kwargs)
+        self.MockCCXTStore_class.assert_called_once_with(**custom_kwargs)
+
+    def test_feed_start_historical_mode(self):
+        fromdate = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        feed = CCXTFeed(fromdate=fromdate, **self.common_feed_params)
+        feed.put_notification = MagicMock()  # Mock backtrader's notification
+        feed._fetch_ohlcv = MagicMock()  # Mock internal method
+
+        feed.start()
+
+        self.assertEqual(feed._state, feed._ST_HISTORBACK)
+        feed.put_notification.assert_called_once_with(feed.DELAYED)
+        feed._fetch_ohlcv.assert_called_once_with(fromdate)
+
+    def test_feed_start_live_mode(self):
+        feed = CCXTFeed(**self.common_feed_params)  # No fromdate
+        feed.put_notification = MagicMock()
+
+        feed.start()
+
+        self.assertEqual(feed._state, feed._ST_LIVE)
+        feed.put_notification.assert_called_once_with(feed.LIVE)
+
+    def test_load_ohlcv_data_available(self):
+        feed = CCXTFeed(**self.common_feed_params)
+        # Mock backtrader's lines structure
+        feed.lines = MagicMock()
+        for line_name in ["datetime", "open", "high", "low", "close", "volume"]:
+            setattr(feed.lines, line_name, [0.0])  # backtrader lines are array-like
+
+        timestamp_ms = int(datetime(2023, 1, 1, 10, 0, 0, tzinfo=timezone.utc).timestamp() * 1000)
+        ohlcv_item = [timestamp_ms, 100.0, 110.0, 90.0, 105.0, 1000.0]
+        feed._data.append(ohlcv_item)
+
+        result = feed._load_ohlcv()
+        self.assertTrue(result)
+        self.assertEqual(feed.lines.close[0], 105.0)
+        self.assertEqual(feed.lines.volume[0], 1000.0)
+        # datetime is converted to backtrader's float format
+        self.assertNotEqual(feed.lines.datetime[0], 0.0)
+
+    def test_load_ohlcv_no_data(self):
+        feed = CCXTFeed(**self.common_feed_params)
+        feed._data.clear()  # Ensure deque is empty
+        result = feed._load_ohlcv()
+        self.assertIsNone(result)
+
+    def test_feed_islive_property(self):
+        hist_params = self.common_feed_params.copy()
+        hist_params["historical"] = True
+        feed_hist = CCXTFeed(**hist_params)
+        self.assertFalse(feed_hist.islive())
+        feed_live = CCXTFeed(**self.common_feed_params)  # common_feed_params has historical=False
+        self.assertTrue(feed_live.islive())
+
+    def test_feed_haslivedata_property(self):
+        feed = CCXTFeed(**self.common_feed_params)
+        feed._state = feed._ST_LIVE
+        feed._data.append("dummy_data_point")
+        self.assertTrue(feed.haslivedata())
+        feed._data.clear()
+        self.assertFalse(feed.haslivedata())
+        feed._state = feed._ST_HISTORBACK  # Not live state
+        feed._data.append("dummy_data_point")
+        self.assertFalse(feed.haslivedata())
 
 
 class _TestStrategy(Strategy):

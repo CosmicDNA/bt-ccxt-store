@@ -81,8 +81,10 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
 
     # def __init__(self, exchange, symbol, ohlcv_limit=None, config={}, retries=5):
     def __init__(self, **kwargs):
-        # self.store = CCXTStore(exchange, config, retries)
-        self.store = self._store(**kwargs)
+        store_arg_names = ["exchange", "currency", "config", "retries", "sandbox"]
+        store_init_kwargs = {k: v for k, v in kwargs.items() if k in store_arg_names}
+        self.store = self._store(**store_init_kwargs)
+
         self.logger = logging.getLogger(self.__class__.__name__)
         self._data = deque()  # data queue for price data
         self._last_id = ""  # last processed trade id for ohlcv

@@ -51,6 +51,6 @@ dev = [
   "bt-ccxt-store[test]", # Installs all dependencies from the 'test' group
   "build>=0.10.0",       # For building the package
   # "twine>=3.0.0",        # For uploading to PyPI
-  # "ruff>=0.1.0",         # Fast linter and formatter
-  # "pre-commit",        # Optional: for running checks before commits
+  "ruff>=0.1.0",         # Fast linter and formatter
+  "pre-commit>=3.0.0",        # Optional: for running checks before commits
 ]

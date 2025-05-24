@@ -32,17 +32,17 @@ class TestFeedInitialFetchBalance(unittest.TestCase):
         """
         CCXTStore._singleton = None
 
-    @patch('ccxt.binance.binance.fetch_balance')
+    @patch("ccxt.binance.binance.fetch_balance")
     def test_fetch_balance_throws_error(self, fetch_balance_mock):
         """
         If API keys are provided the store is expected to fetch the balance.
         """
 
         config = {
-            'apikey': 'an-api-key',
-            'secret': 'an-api-secret',
-            'enableRateLimit': True,
-            'nonce': lambda: str(int(time.time() * 1000))
+            "apikey": "an-api-key",
+            "secret": "an-api-secret",
+            "enableRateLimit": True,
+            "nonce": lambda: str(int(time.time() * 1000)),
         }
         backtesting(config)
 
@@ -54,21 +54,20 @@ class TestFeedInitialFetchBalance(unittest.TestCase):
         not fetch the balance and load the ohlcv data without them.
         """
         config = {
-            'enableRateLimit': True,
-            'nonce': lambda: str(int(time.time() * 1000))
+            "enableRateLimit": True,
+            "nonce": lambda: str(int(time.time() * 1000)),
         }
         finished_strategies = backtesting(config)
         self.assertEqual(finished_strategies[0].next_runs, 3)
 
 
 class _TestStrategy(Strategy):
-
     def __init__(self):
         self.next_runs = 0
 
     def next(self, dt=None):
         dt = dt or self.datas[0].datetime.datetime(0)
-        print('%s closing price: %s' % (dt.isoformat(), self.datas[0].close[0]))
+        print("%s closing price: %s" % (dt.isoformat(), self.datas[0].close[0]))
         self.next_runs += 1
 
 
@@ -77,20 +76,24 @@ def backtesting(config):
 
     cerebro.addstrategy(_TestStrategy)
 
-    cerebro.adddata(CCXTFeed(exchange='binance',
-                             dataname='BNB/USDT',
-                             timeframe=TimeFrame.Minutes,
-                             fromdate=datetime(2019, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-                             todate=datetime(2019, 1, 1, 0, 2, tzinfo=timezone.utc),
-                             compression=1,
-                             ohlcv_limit=2,
-                             currency='BNB',
-                             config=config,
-                             retries=5))
+    cerebro.adddata(
+        CCXTFeed(
+            exchange="binance",
+            dataname="BNB/USDT",
+            timeframe=TimeFrame.Minutes,
+            fromdate=datetime(2019, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+            todate=datetime(2019, 1, 1, 0, 2, tzinfo=timezone.utc),
+            compression=1,
+            ohlcv_limit=2,
+            currency="BNB",
+            config=config,
+            retries=5,
+        )
+    )
 
     finished_strategies = cerebro.run()
     return finished_strategies
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

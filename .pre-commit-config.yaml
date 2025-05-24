@@ -1,0 +1,20 @@
+repos:
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version. Optional: specify a version field to pin Ruff if you want
+    rev: 'v0.5.0' # Or choose the latest/your preferred version
+    hooks:
+    # Run the linter.
+    -   id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+    # Run the formatter.
+    -   id: ruff-format
+
+-   repo: local
+    hooks:
+    -   id: pytest
+        name: pytest
+        entry: pytest
+        language: system # Assumes pytest is in the PATH of your activated venv
+        types: [python]
+        pass_filenames: false # pytest discovers files on its own
+        stages: [commit]

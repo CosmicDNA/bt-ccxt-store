@@ -32,7 +32,7 @@ class TestFeedInitialFetchBalance(unittest.TestCase):
         """
         CCXTStore._singleton = None
 
-    @patch('ccxt.binance.fetch_balance')
+    @patch('ccxt.binance.binance.fetch_balance')
     def test_fetch_balance_throws_error(self, fetch_balance_mock):
         """
         If API keys are provided the store is expected to fetch the balance.

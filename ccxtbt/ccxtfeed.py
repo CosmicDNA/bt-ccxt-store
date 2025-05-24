@@ -21,9 +21,9 @@
 ###############################################################################
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import logging
 import time
 from collections import deque
-import logging
 from datetime import datetime, timezone
 
 import backtrader as bt
@@ -141,10 +141,7 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
         granularity = self.store.get_granularity(self._timeframe, self._compression)
 
         if fromdate:
-            since = int(
-                (fromdate - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds()
-                * 1000
-            )
+            since = int((fromdate - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds() * 1000)
         else:
             if self._last_ts > 0:
                 since = self._last_ts
@@ -161,9 +158,7 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
                 "%s - Requesting: Since TS %s Since date %s granularity %s, limit %s, params %s",
                 datetime.now(tz=timezone.utc),
                 since,
-                datetime.fromtimestamp(since // 1000, tz=timezone.utc)
-                if since is not None
-                else "NA",
+                datetime.fromtimestamp(since // 1000, tz=timezone.utc) if since is not None else "NA",
                 granularity,
                 limit,
                 self.p.fetch_ohlcv_params,
@@ -190,9 +185,7 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
                             (time.time() * 1000),
                         )
                 except IndexError:
-                    self.logger.warning(
-                        "Index Error while logging fetched OHLCV data (debug): %s", data
-                    )
+                    self.logger.warning("Index Error while logging fetched OHLCV data (debug): %s", data)
                 self.logger.debug("---- REQUEST END ----")
 
             # Check to see if dropping the latest candle will help with
@@ -232,12 +225,8 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
             trade_id = trade["id"]
 
             if trade_id > self._last_id:
-                trade_time = datetime.strptime(
-                    trade["datetime"], "%Y-%m-%dT%H:%M:%S.%fZ"
-                )
-                self._data.append(
-                    (trade_time, float(trade["price"]), float(trade["amount"]))
-                )
+                trade_time = datetime.strptime(trade["datetime"], "%Y-%m-%dT%H:%M:%S.%fZ")
+                self._data.append((trade_time, float(trade["price"]), float(trade["amount"])))
                 self._last_id = trade_id
 
         try:

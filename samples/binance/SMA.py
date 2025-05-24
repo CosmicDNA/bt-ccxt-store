@@ -1,8 +1,10 @@
-from ccxtbt import CCXTStore
-import backtrader as bt
-from datetime import datetime, timedelta, timezone
 import json
 import logging
+from datetime import datetime, timedelta, timezone
+
+import backtrader as bt
+
+from ccxtbt import CCXTStore
 
 
 class TestStrategy(bt.Strategy):

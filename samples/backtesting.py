@@ -1,6 +1,6 @@
+import logging
 import time
 from datetime import datetime, timezone
-import logging
 
 import backtrader as bt
 
@@ -23,9 +23,7 @@ def main():
 
         def next(self, dt=None):
             dt = dt or self.datas[0].datetime.datetime(0)
-            self.logger.info(
-                "%s closing price: %s" % (dt.isoformat(), self.datas[0].close[0])
-            )
+            self.logger.info("%s closing price: %s" % (dt.isoformat(), self.datas[0].close[0]))
             self.next_runs += 1
 
     cerebro = bt.Cerebro()

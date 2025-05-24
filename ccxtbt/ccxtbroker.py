@@ -24,7 +24,7 @@ import collections
 import json
 import logging
 
-from backtrader import BrokerBase, OrderBase, Order
+from backtrader import BrokerBase, Order, OrderBase
 from backtrader.position import Position
 from backtrader.utils.py3 import queue, with_metaclass
 
@@ -144,7 +144,8 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
         self.value = self.store._value
         return self.cash, self.value
 
-    def get_wallet_balance(self, currency, params={}):
+    def get_wallet_balance(self, currency, params=None):
+        params = params if params is not None else {}
         balance = self.store.get_wallet_balance(currency, params=params)
         try:
             cash = balance["free"][currency] if balance["free"][currency] else 0
@@ -218,15 +219,10 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
                         )
                         o_order.executed_fills.append(fill["id"])
 
-            self.logger.debug(
-                "CCXT Order details: %s", json.dumps(ccxt_order, indent=self.indent)
-            )
+            self.logger.debug("CCXT Order details: %s", json.dumps(ccxt_order, indent=self.indent))
 
             # Check if the order is closed
-            if (
-                ccxt_order[self.mappings["closed_order"]["key"]]
-                == self.mappings["closed_order"]["value"]
-            ):
+            if ccxt_order[self.mappings["closed_order"]["key"]] == self.mappings["closed_order"]["value"]:
                 pos = self.getposition(o_order.data, clone=False)
                 pos.update(o_order.size, o_order.price)
                 o_order.completed()
@@ -236,10 +232,7 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
 
             # Manage case when an order is being Canceled from the Exchange
             #  from https://github.com/juancols/bt-ccxt-store/
-            if (
-                ccxt_order[self.mappings["canceled_order"]["key"]]
-                == self.mappings["canceled_order"]["value"]
-            ):
+            if ccxt_order[self.mappings["canceled_order"]["key"]] == self.mappings["canceled_order"]["value"]:
                 self.open_orders.remove(o_order)
                 o_order.cancel()
                 self.notify(o_order)
@@ -264,9 +257,7 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
         else:
             try:
                 # all params are exchange specific: https://github.com/ccxt/ccxt/wiki/Manual#custom-order-params
-                params["created"] = (
-                    created  # Add timestamp of order creation for backtesting
-                )
+                params["created"] = created  # Add timestamp of order creation for backtesting
                 ret_ord = self.store.create_order(
                     symbol=data.p.dataname,
                     order_type=order_type,
@@ -351,10 +342,7 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
             json.dumps(ccxt_order, indent=self.indent),
         )
 
-        if (
-            ccxt_order[self.mappings["closed_order"]["key"]]
-            == self.mappings["closed_order"]["value"]
-        ):
+        if ccxt_order[self.mappings["closed_order"]["key"]] == self.mappings["closed_order"]["value"]:
             return order
 
         ccxt_order = self.store.cancel_order(oID, order.data.p.dataname)
@@ -363,17 +351,10 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
             "Order status after cancel attempt: %s",
             json.dumps(ccxt_order, indent=self.indent),
         )
-        self.logger.debug(
-            "Value Received: %s", ccxt_order[self.mappings["canceled_order"]["key"]]
-        )
-        self.logger.debug(
-            "Value Expected: %s", self.mappings["canceled_order"]["value"]
-        )
+        self.logger.debug("Value Received: %s", ccxt_order[self.mappings["canceled_order"]["key"]])
+        self.logger.debug("Value Expected: %s", self.mappings["canceled_order"]["value"])
 
-        if (
-            ccxt_order[self.mappings["canceled_order"]["key"]]
-            == self.mappings["canceled_order"]["value"]
-        ):
+        if ccxt_order[self.mappings["canceled_order"]["key"]] == self.mappings["canceled_order"]["value"]:
             self.open_orders.remove(order)
             order.cancel()
             self.notify(order)
@@ -406,12 +387,8 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
         endpoint_str = endpoint_str.replace("}", "")
 
         if prefix != "":
-            method_str = (
-                prefix.lower() + "_private_" + type.lower() + endpoint_str.lower()
-            )
+            method_str = prefix.lower() + "_private_" + type.lower() + endpoint_str.lower()
         else:
             method_str = "private_" + type.lower() + endpoint_str.lower()
 
-        return self.store.private_end_point(
-            type=type, endpoint=method_str, params=params
-        )
+        return self.store.private_end_point(type=type, endpoint=method_str, params=params)

@@ -19,7 +19,11 @@ keywords = [
   "algorithmic trading",
   "bot",
 ]
-dependencies = ["backtrader", "ccxt"]
+dependencies = [
+  "backtrader",
+  "ccxt",
+  "pandas"
+]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
@@ -45,12 +49,78 @@ packages = ["ccxtbt"]
 [project.optional-dependencies]
 test = [
   "pytest>=8.0",
-  # "pytest-cov", # Example: if you want coverage reports
+  "pytest-cov", # Example: if you want coverage reports
 ]
 dev = [
   "bt-ccxt-store[test]", # Installs all dependencies from the 'test' group
-  "build>=0.10.0",       # For building the package
-  # "twine>=3.0.0",        # For uploading to PyPI
-  "ruff>=0.1.0",         # Fast linter and formatter
-  "pre-commit>=3.0.0",        # Optional: for running checks before commits
+  "pre-commit",
+  "black",
+  "isort",
+  "flake8",
+  "coverage[toml]", # For running coverage and configuring via pyproject.toml
 ]
+
+[tool.black]
+line-length = 119
+target-version = [
+  'py38',
+  'py39',
+  'py310',
+  'py311',
+] # Specify your target Python versions
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 119
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+
+[tool.pytest.ini_options]
+minversion = "6.0" # Specify a minimum pytest version
+addopts = [
+    "--cov=ccxtbt", # Measure coverage for the 'ccxtbt' package
+    "--cov-report=term-missing", # Show a terminal report with missing lines
+    "--cov-report=html", # Generate an HTML report
+    # "--cov-fail-under=80", # Optional: fail if coverage is below 80%
+]
+testpaths = [
+    "test", # Or wherever your tests are located (e.g., "tests")
+]
+
+[tool.coverage.run]
+source = ["ccxtbt"]  # Specify your source directory/package
+branch = true         # Measure branch coverage
+omit = [
+    "*/tests/*",      # Don't cover test files themselves
+    "ccxtbt/venv/*",  # Example: if you had a venv inside your source
+    "*/__main__.py",  # Often not testable in the same way
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true # Hide 100% covered files from text report to focus on problem areas
+# fail_under = 80   # Optional: fail if coverage is below a certain percentage (good for CI)
+precision = 2
+[tool.coverage.html]
+directory = "htmlcov"
+[tool.coverage.xml]
+output = "coverage.xml"

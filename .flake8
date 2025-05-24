@@ -1,0 +1,21 @@
+[flake8]
+ignore =
+    E501,
+    W503,
+    F401,
+    F403,
+    F405,
+    E203,
+max-line-length = 119
+exclude =
+    .git,
+    __pycache__,
+    .tox,
+    .venv,
+    build,
+    dist,
+    docs
+per-file-ignores =
+    # You can ignore specific errors in specific files if needed
+    # e.g. __init__.py: F401
+    # src/adaptive_predictor.py: E722 # Example: if you have a bare except you want to allow temporarily

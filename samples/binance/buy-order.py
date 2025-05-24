@@ -1,20 +1,16 @@
 import json
+import logging
 import os
 import time
-import logging
 from datetime import datetime, timedelta, timezone
 
 import backtrader as bt
-
 from backtrader import Order
 
 from ccxtbt import CCXTStore
 
-
 # Set a general level (e.g., INFO) for other loggers
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 # Specifically set the CCXTFeed logger to DEBUG level
 logging.getLogger("TestStrategy").setLevel(logging.DEBUG)
 
@@ -50,9 +46,7 @@ class TestStrategy(bt.Strategy):
             )
 
     def notify_data(self, data, status, *args, **kwargs):
-        self.logger.info(
-            f"{data._name} Data Status: {data._getstatusname(status)}, Order Status: {status}"
-        )
+        self.logger.info(f"{data._name} Data Status: {data._getstatusname(status)}, Order Status: {status}")
         if data._getstatusname(status) == "LIVE":
             self.live_data = True
         else:
@@ -81,9 +75,7 @@ config = {
 }
 
 # Set a general level (e.g., INFO) for other loggers
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 # Specifically set the CCXTFeed logger to DEBUG level
 logging.getLogger("CCXTStore").setLevel(logging.DEBUG)
 

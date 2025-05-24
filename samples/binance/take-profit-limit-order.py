@@ -1,12 +1,13 @@
-import os
-
-from ccxtbt import CCXTStore
-from backtrader import Order
-import backtrader as bt
-from datetime import datetime, timedelta, timezone
-import time
 import json
 import logging
+import os
+import time
+from datetime import datetime, timedelta, timezone
+
+import backtrader as bt
+from backtrader import Order
+
+from ccxtbt import CCXTStore
 
 
 class TestStrategy(bt.Strategy):
@@ -25,9 +26,7 @@ class TestStrategy(bt.Strategy):
             #
             # Attention! If you don't want to actually sell the stopPrice should be way above the market price.
             # This way you still have time to cancel the order at the exchange.
-            self.order = self.sell(
-                size=2.0, exectype=Order.StopLimit, price=7.485, stopPrice=7.485
-            )
+            self.order = self.sell(size=2.0, exectype=Order.StopLimit, price=7.485, stopPrice=7.485)
             self.sold = True
 
         for data in self.datas:
@@ -46,9 +45,7 @@ class TestStrategy(bt.Strategy):
     def notify_data(self, data, status, *args, **kwargs):
         dn = data._name
         dt = datetime.now()
-        msg = "Data Status: {}, Order Status: {}".format(
-            data._getstatusname(status), status
-        )
+        msg = "Data Status: {}, Order Status: {}".format(data._getstatusname(status), status)
         print(dt, dn, msg)
         if data._getstatusname(status) == "LIVE":
             self.live_data = True
@@ -78,9 +75,7 @@ config = {
 }
 
 # Set a general level (e.g., INFO) for other loggers
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 # Specifically set the CCXTFeed logger to DEBUG level
 logging.getLogger("CCXTStore").setLevel(logging.DEBUG)
 

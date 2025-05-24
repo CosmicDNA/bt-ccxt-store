@@ -1,14 +1,13 @@
-from ccxtbt import CCXTStore
-import backtrader as bt
+import logging
 from datetime import datetime, timedelta, timezone
 from os import environ
 
-import logging
+import backtrader as bt
+
+from ccxtbt import CCXTStore
 
 # Set a general level (e.g., INFO) for other loggers
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 # Specifically set the CCXTFeed logger to DEBUG level
 logging.getLogger("TestStrategy").setLevel(logging.DEBUG)
 

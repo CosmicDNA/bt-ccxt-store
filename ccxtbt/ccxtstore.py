@@ -20,16 +20,17 @@
 ###############################################################################
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import logging
 import time
 from datetime import datetime
-import logging
 from functools import wraps
 
 import backtrader as bt
 import ccxt
+import pandas as pd
 from backtrader.metabase import MetaParams
 from backtrader.utils.py3 import with_metaclass
-from ccxt.base.errors import NetworkError, ExchangeError
+from ccxt.base.errors import ExchangeError, NetworkError, NotSupported
 
 
 class MetaSingleton(MetaParams):
@@ -119,16 +120,13 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
 
     def get_granularity(self, timeframe, compression):
         if not self.exchange.has["fetchOHLCV"]:
-            raise NotImplementedError(
-                "'%s' exchange doesn't support fetching OHLCV data" % self.exchange.name
-            )
+            raise NotImplementedError("'%s' exchange doesn't support fetching OHLCV data" % self.exchange.name)
 
         granularity = self._GRANULARITIES.get((timeframe, compression))
         if granularity is None:
             raise ValueError(
                 "backtrader CCXT module doesn't support fetching OHLCV "
-                "data for time frame %s, comression %s"
-                % (bt.TimeFrame.getname(timeframe), compression)
+                "data for time frame %s, comression %s" % (bt.TimeFrame.getname(timeframe), compression)
             )
 
         if self.exchange.timeframes and granularity not in self.exchange.timeframes:
@@ -143,9 +141,7 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
         @wraps(method)
         def retry_method(self, *args, **kwargs):
             for i in range(self.retries):
-                self.logger.debug(
-                    "%s - %s - Attempt %s", datetime.now(), method.__name__, i
-                )
+                self.logger.debug("%s - %s - Attempt %s", datetime.now(), method.__name__, i)
                 time.sleep(self.exchange.rateLimit / 1000)
                 try:
                     return method(self, *args, **kwargs)
@@ -196,7 +192,8 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
         return self.exchange.fetch_trades(symbol)
 
     @retry
-    def fetch_ohlcv(self, symbol, timeframe, since, limit, params={}):
+    def fetch_ohlcv(self, symbol, timeframe, since, limit, params=None):
+        params = params if params is not None else {}
         self.logger.debug(
             "Fetching: %s, TF: %s, Since: %s, Limit: %s, Params: %s",
             symbol,
@@ -205,9 +202,7 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
             limit,
             params,
         )
-        return self.exchange.fetch_ohlcv(
-            symbol, timeframe=timeframe, since=since, limit=limit, params=params
-        )
+        return self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=since, limit=limit, params=params)
 
     @retry
     def fetch_order(self, oid, symbol):
@@ -239,3 +234,104 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
         print(dir(ccxt.hitbtc()))
         """
         return getattr(self.exchange, endpoint)(params)
+
+    def get_historical_dataframe(
+        self, symbol: str, interval_str: str, num_candles: int, drop_incomplete_candle: bool = True
+    ) -> pd.DataFrame:
+        """
+        Fetches a block of historical OHLCV data directly into a Pandas DataFrame.
+
+        Args:
+            symbol (str): The trading symbol (e.g., 'BTC/USDT').
+            interval_str (str): The timeframe interval string (e.g., '1m', '5m', '1h', '1d').
+                                This should be a timeframe string recognized by CCXT.
+                                It will be validated against the exchange's capabilities.
+            num_candles (int): The number of candles to fetch.
+            drop_incomplete_candle (bool): If True (default), fetches num_candles + 1 and
+                                           drops the newest one to ensure only completed
+                                           candles are returned.
+
+        Returns:
+            pd.DataFrame: A Pandas DataFrame with a DatetimeIndex (UTC) named 'timestamp'
+                          and columns ['open', 'high', 'low', 'close', 'volume'].
+                          Returns an empty DataFrame with this structure if data cannot be fetched.
+                          Raises NotSupported or ValueError for configuration issues.
+        """
+        if not self.exchange.has["fetchOHLCV"]:
+            msg = f"{self.exchange.id} does not support fetchOHLCV."
+            self.logger.error(msg)
+            raise NotSupported(msg)
+
+        if self.exchange.timeframes and interval_str not in self.exchange.timeframes:
+            msg = (
+                f"'{self.exchange.id}' exchange doesn't support fetching OHLCV data for "
+                f"{interval_str} time frame. Supported: {list(self.exchange.timeframes.keys())}"
+            )
+            self.logger.error(msg)
+            raise ValueError(msg)
+
+        df_columns = ["open", "high", "low", "close", "volume"]
+        empty_df_dtypes = {col: "float" for col in df_columns}
+        empty_df = pd.DataFrame(index=pd.DatetimeIndex([], tz="UTC", name="timestamp"), columns=df_columns).astype(
+            empty_df_dtypes
+        )
+
+        limit_to_fetch = num_candles
+        if drop_incomplete_candle:
+            limit_to_fetch += 1
+
+        if limit_to_fetch <= 0:
+            self.logger.warning(
+                f"Calculated limit_to_fetch is {limit_to_fetch} (num_candles: {num_candles}, "
+                f"drop_incomplete_candle: {drop_incomplete_candle}). "
+                f"Returning empty DataFrame for {symbol} {interval_str}."
+            )
+            return empty_df
+
+        try:
+            # Use the existing self.fetch_ohlcv which includes retry logic
+            # CCXT's limit parameter means "max number of candles to return"
+            # 'since=None' fetches the most recent candles
+            ohlcv_data = self.fetch_ohlcv(
+                symbol=symbol,
+                timeframe=interval_str,
+                since=None,
+                limit=limit_to_fetch,
+                params={},  # Add if any specific params are needed for this direct call
+            )
+
+            if not ohlcv_data:
+                self.logger.warning(
+                    f"No data returned by exchange for {symbol}, interval {interval_str}, limit {limit_to_fetch}."
+                )
+                return empty_df
+
+            df = pd.DataFrame(ohlcv_data, columns=["timestamp"] + df_columns)
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
+            df.set_index("timestamp", inplace=True)
+
+            for col in df_columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+            df.dropna(subset=df_columns, inplace=True)
+
+            if df.empty:
+                self.logger.warning(f"DataFrame became empty after processing for {symbol}, interval {interval_str}.")
+                return empty_df
+
+            if drop_incomplete_candle and not df.empty:
+                df = df.iloc[:-1]  # Drop the last (newest) candle
+
+            df = df.tail(num_candles)  # Ensure we return at most num_candles
+
+            return df.astype(empty_df_dtypes) if not df.empty else empty_df.copy()
+
+        except (NetworkError, ExchangeError) as e:  # Should be caught by self.fetch_ohlcv retry, but as a safeguard
+            self.logger.error(
+                f"CCXT Network/Exchange Error in get_historical_dataframe for {symbol} ({interval_str}): {e}"
+            )
+            return empty_df
+        except Exception as e:  # Catch any other unexpected errors
+            self.logger.error(
+                f"Unexpected error in get_historical_dataframe for {symbol} ({interval_str}): {e}", exc_info=True
+            )
+            return empty_df

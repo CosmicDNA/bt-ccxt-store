@@ -1,20 +1,25 @@
+# /home/daniel/Workspaces/StockShow/pattern-identifier/.pre-commit-config.yaml
 repos:
--   repo: https://github.com/astral-sh/ruff-pre-commit
-    # Ruff version. Optional: specify a version field to pin Ruff if you want
-    rev: 'v0.5.0' # Or choose the latest/your preferred version
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0 # Updated to latest stable version
     hooks:
-    # Run the linter.
-    -   id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
-    # Run the formatter.
-    -   id: ruff-format
-
--   repo: local
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+    -   id: check-added-large-files
+-   repo: https://github.com/psf/black
+    rev: 24.8.0 # Updated to latest stable version
     hooks:
-    -   id: pytest
-        name: pytest
-        entry: pytest
-        language: system # Assumes pytest is in the PATH of your activated venv
-        types: [python]
-        pass_filenames: false # pytest discovers files on its own
-        stages: [pre-commit]
+    -   id: black
+        args: [--line-length=119] # Ensure this matches your pyproject.toml
+-   repo: https://github.com/pycqa/isort
+    rev: 5.13.2 # Already latest stable
+    hooks:
+    -   id: isort
+        args: ["--profile", "black"] # --filter-files is often redundant with pre-commit
+-   repo: https://github.com/pycqa/flake8
+    rev: 7.1.0 # Updated to latest stable version
+    hooks:
+    -   id: flake8
+        args: [--max-line-length=119] # Ensure this matches your .flake8
+        additional_dependencies: [flake8-bugbear]
